@@ -65,7 +65,7 @@
 
         .search-options {
             display: grid;
-            grid-template-columns: 1fr auto auto auto;
+            grid-template-columns: 2fr auto auto auto;
             gap: 1rem;
             margin-bottom: 1rem;
         }
@@ -287,6 +287,8 @@
             border-radius: 8px;
             margin-bottom: 1rem;
             text-align: center;
+            opacity: 1;
+            transition: opacity 0.5s ease;
         }
 
         .success-message {
@@ -296,6 +298,8 @@
             border-radius: 8px;
             margin-bottom: 1rem;
             text-align: center;
+            opacity: 1;
+            transition: opacity 0.5s ease;
         }
 
         .detail-section {
@@ -532,6 +536,99 @@
             border: 2px solid #2196F3;
             box-shadow: 0 2px 5px rgba(0,0,0,0.2);
         }
+
+        .search-suggestions {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 0 0 8px 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            max-height: 300px;
+            overflow-y: auto;
+            z-index: 1000;
+            display: none;
+        }
+
+        .search-wrapper {
+            position: relative;
+            flex: 1;
+        }
+
+        .suggestion-item {
+            padding: 12px 15px;
+            cursor: pointer;
+            border-bottom: 1px solid #f0f0f0;
+            transition: background-color 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .suggestion-item:hover {
+            background-color: #f5f5f5;
+        }
+
+        .suggestion-item i {
+            color: var(--primary-color);
+        }
+
+        .suggestion-item:last-child {
+            border-bottom: none;
+        }
+
+        .suggestion-highlight {
+            color: var(--primary-color);
+            font-weight: 500;
+        }
+
+        .search-wrapper input[type="text"] {
+            width: 100%;
+            min-width: 300px;
+        }
+
+        @media (max-width: 768px) {
+            .search-options {
+                grid-template-columns: 1fr;
+            }
+            
+            .search-wrapper input[type="text"] {
+                width: 100%;
+                min-width: 100%;
+            }
+        }
+
+        .download-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.8rem 1.2rem;
+            background-color: var(--primary-color);
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            transition: all 0.3s ease;
+            margin-top: 1rem;
+            font-size: 0.95rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .download-btn:hover {
+            background-color: var(--secondary-color);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+
+        .download-btn i {
+            font-size: 1.1rem;
+        }
+
+        .download-btn:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
     </style>
 </head>
 <body>
@@ -543,7 +640,10 @@
     <div class="container">
         <div class="search-container">
             <div class="search-options">
-                <input type="text" id="searchInput" placeholder="Search for images, videos, and more...">
+                <div class="search-wrapper">
+                    <input type="text" id="searchInput" placeholder="Search for images, videos, and more...">
+                    <div id="searchSuggestions" class="search-suggestions"></div>
+                </div>
                 <select id="fileType">
                     <option value="all">All Media</option>
                     <option value="image">Images</option>
@@ -701,11 +801,11 @@
                         const group = new L.featureGroup(markers);
                         map.fitBounds(group.getBounds().pad(0.1));
                         
-                        // Show success message
-                        gallery.insertAdjacentHTML('beforebegin', 
-                            `<div class="success-message">Found ${results.length} results near this location</div>`);
+                        // Show success message with timeout
+                        showTemporaryMessage(`Found ${results.length} results near this location`, 'success');
                     } else {
-                        gallery.innerHTML = '<div class="error-message">No media files found in this area. Try increasing the search radius.</div>';
+                        // Show error message with timeout
+                        showTemporaryMessage('No media files found in this area. Try increasing the search radius.', 'error');
                     }
                 } else {
                     gallery.innerHTML = '<div class="error-message">No results found in this area. Try a different location.</div>';
@@ -1076,6 +1176,128 @@ const wikiUrl = `https://commons.wikimedia.org/w/api.php?action=query&titles=${f
         function showDetails(title) {
             // Open in new tab on Wikimedia Commons
             window.open(`https://commons.wikimedia.org/wiki/${title}`, '_blank');
+        }
+
+        let debounceTimer;
+        const searchInput = document.getElementById('searchInput');
+        const suggestionsDiv = document.getElementById('searchSuggestions');
+
+        searchInput.addEventListener('input', function(e) {
+            clearTimeout(debounceTimer);
+            const searchTerm = e.target.value.trim();
+            
+            if (searchTerm.length < 2) {
+                suggestionsDiv.style.display = 'none';
+                return;
+            }
+
+            debounceTimer = setTimeout(() => {
+                fetchSuggestions(searchTerm);
+            }, 300);
+        });
+
+        // Hide suggestions when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!searchInput.contains(e.target) && !suggestionsDiv.contains(e.target)) {
+                suggestionsDiv.style.display = 'none';
+            }
+        });
+
+        async function fetchSuggestions(searchTerm) {
+            try {
+                const url = `https://commons.wikimedia.org/w/api.php?action=opensearch&search=${encodeURIComponent(searchTerm)}&namespace=6&limit=10&format=json&origin=*`;
+                
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                displaySuggestions(data[1], searchTerm);
+            } catch (error) {
+                console.error('Error fetching suggestions:', error);
+            }
+        }
+
+        function displaySuggestions(suggestions, searchTerm) {
+            if (!suggestions || suggestions.length === 0) {
+                suggestionsDiv.style.display = 'none';
+                return;
+            }
+
+            const regex = new RegExp(`(${searchTerm})`, 'gi');
+            suggestionsDiv.innerHTML = suggestions
+                .map(suggestion => {
+                    const highlightedText = suggestion.replace('File:', '')
+                        .replace(regex, '<span class="suggestion-highlight">$1</span>');
+                    
+                    return `
+                        <div class="suggestion-item" onclick="selectSuggestion('${suggestion.replace(/'/g, "\\'")}')">
+                            <i class="fas fa-search"></i>
+                            ${highlightedText}
+                        </div>
+                    `;
+                })
+                .join('');
+
+            suggestionsDiv.style.display = 'block';
+        }
+
+        function selectSuggestion(suggestion) {
+            searchInput.value = suggestion;
+            suggestionsDiv.style.display = 'none';
+            performSearch();
+        }
+
+        // Add keyboard navigation for suggestions
+        searchInput.addEventListener('keydown', function(e) {
+            const suggestions = suggestionsDiv.getElementsByClassName('suggestion-item');
+            const current = suggestionsDiv.querySelector('.suggestion-item.selected');
+            
+            if (suggestions.length === 0) return;
+
+            if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                e.preventDefault();
+                
+                if (!current) {
+                    suggestions[e.key === 'ArrowDown' ? 0 : suggestions.length - 1].classList.add('selected');
+                    return;
+                }
+
+                current.classList.remove('selected');
+                let next;
+
+                if (e.key === 'ArrowDown') {
+                    next = current.nextElementSibling || suggestions[0];
+                } else {
+                    next = current.previousElementSibling || suggestions[suggestions.length - 1];
+                }
+
+                next.classList.add('selected');
+            } else if (e.key === 'Enter' && current) {
+                e.preventDefault();
+                current.click();
+            }
+        });
+
+        // Add this helper function before the existing scripts
+        function showTemporaryMessage(message, type, duration = 5000) {
+            // Remove any existing messages
+            const existingMessages = document.querySelectorAll('.success-message, .error-message');
+            existingMessages.forEach(msg => msg.remove());
+
+            // Create new message
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `${type}-message`;
+            messageDiv.innerHTML = message;
+
+            // Insert message before gallery
+            const gallery = document.getElementById('gallery');
+            gallery.insertAdjacentElement('beforebegin', messageDiv);
+
+            // Remove message after duration
+            setTimeout(() => {
+                messageDiv.style.opacity = '0';
+                messageDiv.style.transition = 'opacity 0.5s ease';
+                setTimeout(() => messageDiv.remove(), 500);
+            }, duration);
         }
     </script>
 </body>
