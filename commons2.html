@@ -676,8 +676,7 @@
                 const radius = 10; // 10km radius
                 const limit = document.getElementById('limit').value;
                 
-                const url = `https://commons.wikimedia.org/w/api.php?action=query&generator=geosearch&ggsnamespace=6&ggscoord=${lat}|${lng}&ggsradius=${radius * 1000}&ggslimit=${limit}&prop=imageinfo|coordinates&iiprop=url|timestamp|size|mime|dimensions|user&format=json&origin=*`;
-                
+                const url = `https://commons.wikimedia.org/w/api.php?action=query&generator=geosearch&ggsnamespace=6&ggscoord=${lat}|${lng}&ggsradius=${radius * 1000}&ggslimit=${limit}&prop=imageinfo|coordinates&iiprop=url|timestamp|size|mime|dimensions|user&iiurlwidth=480&format=json&origin=*`;                
                 const response = await fetch(url);
                 const data = await response.json();
 
@@ -729,8 +728,7 @@
 
             try {
                 const limit = document.getElementById('limit').value;
-                const url = `https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrnamespace=6&gsrsearch=filetype:bitmap|drawing|image|video|audio ${encodeURIComponent(searchTerm)}&gsrlimit=${limit}&prop=imageinfo|coordinates&iiprop=url|timestamp|size|mime&format=json&origin=*`;
-                
+                const url = `https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrnamespace=6&gsrsearch=filetype:bitmap|drawing|image|video|audio ${encodeURIComponent(searchTerm)}&gsrlimit=${limit}&prop=imageinfo|coordinates&iiprop=url|timestamp|size|mime&iiurlwidth=480&format=json&origin=*`;                
                 const response = await fetch(url);
                 const data = await response.json();
                 
@@ -760,15 +758,15 @@
             const marker = L.marker([lat, lon]).addTo(map);
             
             let popupContent = `
-                <div class="location-marker">
-                    <h4>${item.title.replace('File:', '')}</h4>
-                    <img src="${imageInfo.url}" alt="${item.title}" style="width: 100%; border-radius: 4px; margin-top: 0.5rem;">
-                    <p>Date: ${new Date(imageInfo.timestamp).toLocaleDateString()}</p>
-                    <button onclick="openModal('${imageInfo.url}', '${item.title}', ${JSON.stringify(imageInfo).replace(/"/g, '&quot;')})" class="action-btn">
-                        <i class="fas fa-info-circle"></i> View Details
-                    </button>
-                </div>
-            `;
+            <div class="location-marker">
+                <h4>${item.title.replace('File:', '')}</h4>
+                <img src="${imageInfo.thumburl || imageInfo.url}" alt="${item.title}" style="width: 100%; border-radius: 4px; margin-top: 0.5rem;">
+                <p>Date: ${new Date(imageInfo.timestamp).toLocaleDateString()}</p>
+                <button onclick="openModal('${imageInfo.url}', '${item.title}', ${JSON.stringify(imageInfo).replace(/"/g, '&quot;')})" class="action-btn">
+                    <i class="fas fa-info-circle"></i> View Details
+                </button>
+            </div>
+        `;
 
             const popup = L.popup().setContent(popupContent);
             marker.bindPopup(popup);
@@ -899,8 +897,7 @@
 
             try {
                 const filename = encodeURIComponent(title);
-                const wikiUrl = `https://commons.wikimedia.org/w/api.php?action=query&titles=${filename}&prop=imageinfo|categories|globalusage|extlinks&iiprop=timestamp|user|url|size|mime|mediatype|metadata|commonmetadata|extmetadata&format=json&origin=*`;
-                
+const wikiUrl = `https://commons.wikimedia.org/w/api.php?action=query&titles=${filename}&prop=imageinfo|categories|globalusage|extlinks&iiprop=timestamp|user|url|size|mime|mediatype|metadata|commonmetadata|extmetadata&iiurlwidth=480&format=json&origin=*`;                
                 const response = await fetch(wikiUrl);
                 const data = await response.json();
                 const page = Object.values(data.query.pages)[0];
